@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>❤</title>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body {
+        overflow: hidden;
+        background: #f5f5f7; /* 网页背景：珍珠白 */
+        height: 100vh;
+    }
+    .card {
+        position: absolute;
+        padding: 6px 12px;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px #0004;
+        user-select: none;
+        opacity: 0;
+        animation: fadeIn 0.25s ease-out forwards;
+        white-space: nowrap;
+    }
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    .tip {
+        position: fixed;
+        top:20px;
+        left:50%;
+        transform: translateX(-50%);
+        color:#888;
+        font-size:14px;
+        z-index:9999;
+    }
+    /* 进度条样式 */
+    .progressWrap{
+        position: fixed;
+        top:45px;
+        left:50%;
+        transform: translateX(-50%);
+        width:220px;
+        height:6px;
+        background:#ddd;
+        border-radius:3px;
+        z-index:9999;
+        overflow:hidden;
+    }
+    .progressBar{
+        height:100%;
+        width:0%;
+        background:#b8a8c8;
+        transition: width 0.15s linear;
+    }
+</style>
+</head>
+<body>
+<div class="tip">音乐加载中，请稍候…</div>
+<div class="progressWrap">
+    <div class="progressBar"></div>
+</div>
+
+<audio id="bgMusic" loop preload="auto" autoplay muted>
+    <source src="https://musicwebsite-dp7hlewstz78.edgeone.dev/Night%20Cruising.mp3" type="audio/mpeg">
+
+<script>
+const textList = [
+    "记得吃药",
+    "早点休息",
+    "多喝温水",
+    "别熬夜",
+    "照顾好自己",
+    "好好吃饭",
+    "不要太累",
+    "要开心呀",
+    "按时休息",
+    "照顾好身体"
+];
+const bgMusic = document.getElementById('bgMusic');
+bgMusic.playbackRate = 0.85;
+
+let soundUnmuted = false;
+let audioReady = false;
+let heartPoints = null;
+
+const tipDom = document.querySelector('.tip');
+const progressBar = document.querySelector('.progressBar');
+const progressWrap = document.querySelector('.progressWrap');
+
+// 15秒超时兜底
+let audioTimeout = setTimeout(()=>{
+    if(!audioReady){
+        tipDom.textContent = "加载缓慢，点击页面尝试继续";
+    }
+},15000);
+
+// 预计算爱心点位
+function preCalcHeart(){
+    const scale = 18;
+    const centerX = Math.floor(window.innerWidth / 2);
+    const centerY = Math.floor(window.innerHeight / 2);
+    const points = [];
+    for (let t = 0; t < 628; t += 5) {
+        const rad = t / 100;
+        const x = 16 * Math.sin(rad) ** 3;
+        const y = 13 * Math.cos(rad) - 5 * Math.cos(2 * rad) - 2 * Math.cos(3 * rad) - Math.cos(4 * rad);
+        const winX = Math.round(centerX + scale * x);
+        const winY = Math.round(centerY - scale * y);
+        points.push({ x: winX, y: winY });
+    }
+    return points;
+}
+
+// 缓冲进度更新
+bgMusic.addEventListener('progress', function(){
+    if(bgMusic.buffered.length > 0 && bgMusic.duration){
+        const loaded = bgMusic.buffered.end(0);
+        const total = bgMusic.duration;
+        const percent = Math.min((loaded / total)*100,100);
+        progressBar.style.width = percent + "%";
+    }
+});
+
+// 音频加载就绪
+bgMusic.addEventListener('canplaythrough', function(){
+    clearTimeout(audioTimeout);
+    audioReady = true;
+    heartPoints = preCalcHeart();
+    progressBar.style.width = "100%";
+    tipDom.textContent = "点击页面任意位置开始";
+});
+
+// 音频加载出错
+bgMusic.addEventListener('error',function(){
+    clearTimeout(audioTimeout);
+    tipDom.textContent = "音乐加载失败，请检查链接";
+});
+
+document.body.addEventListener('click',()=>{
+    if(!audioReady) return;
+    if(!soundUnmuted){
+        bgMusic.muted = false;
+        soundUnmuted = true;
+        tipDom.style.display='none';
+        progressWrap.style.display='none'; //开始后隐藏进度条
+        // 点击后才启动爱心动画
+        createHeartWindow(0);
+    }
+})
+
+function lerpColor(c1, c2, t) {
+    const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+    const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+    const b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+    return `rgb(${r},${g},${b})`;
+}
+
+let allCards = [];
+let heartCards = [];
+const maxRandomWin = 35;
+let randomRunning = false;
+
+function closeAll() {
+    allCards.forEach(el => {
+        if (el.parentNode) el.remove();
+    });
+    allCards = [];
+    heartCards = [];
+    randomRunning = false;
+    bgMusic.pause();
+}
+
+function createCard(posX, posY, text) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.left = posX + "px";
+    card.style.top = posY + "px";
+    const r = Math.floor(Math.random()*(255-80)+80);
+    const g = Math.floor(Math.random()*(255-80)+80);
+    const b = Math.floor(Math.random()*(255-80)+80);
+    card.style.backgroundColor = `rgb(${r},${g},${b})`;
+    const colorStart = [255, 255, 255];
+    const colorEnd = [255, 180, 210];
+    for (let i = 0; i < text.length; i++) {
+        const span = document.createElement("span");
+        const ratio = i / Math.max(text.length - 1, 1);
+        span.style.color = lerpColor(colorStart, colorEnd, ratio);
+        span.style.fontFamily = "Microsoft Yahei";
+        span.style.fontWeight = "bold";
+        span.style.fontSize = "12px";
+        span.textContent = text[i];
+        card.appendChild(span);
+    }
+    card.oncontextmenu = e => {
+        e.preventDefault();
+        closeAll();
+    };
+    document.body.appendChild(card);
+    allCards.push(card);
+    return card;
+}
+
+function createHeartWindow(index) {
+    if (index >= heartPoints.length) {
+        setTimeout(() => closeHeartSequence(0), 1000);
+        return;
+    }
+    const p = heartPoints[index];
+    const msg = textList[Math.floor(Math.random() * textList.length)];
+    const card = createCard(p.x, p.y, msg);
+    heartCards.push(card);
+    setTimeout(() => {
+        createHeartWindow(index + 1);
+    }, 30);
+}
+
+function closeHeartSequence(index) {
+    if (index >= heartCards.length) {
+        startRandomSpawn();
+        return;
+    }
+    const el = heartCards[index];
+    if (el && el.parentNode) el.remove();
+    const idx = allCards.indexOf(el);
+    if (idx > -1) allCards.splice(idx, 1);
+    setTimeout(() => {
+        closeHeartSequence(index + 1);
+    }, 25);
+}
+
+function spawnRandomWindow() {
+    if (allCards.length >= maxRandomWin) return;
+    const sw = window.innerWidth;
+    const sh = window.innerHeight;
+    const msg = textList[Math.floor(Math.random() * textList.length)];
+    const cardWidth = 140;
+    const cardHeight = 30;
+    const rx = Math.floor(Math.random() * Math.max(0, sw - cardWidth));
+    const ry = Math.floor(Math.random() * Math.max(0, sh - cardHeight));
+    createCard(rx, ry, msg);
+}
+
+function startRandomSpawn() {
+    if (randomRunning) return;
+    randomRunning = true;
+    function loop() {
+        if (!randomRunning) return;
+        if (allCards.length < maxRandomWin) {
+            spawnRandomWindow();
+        }
+        setTimeout(loop, 130);
+    }
+    setTimeout(loop, 200);
+}
+</script>
+</body>
+</html>
